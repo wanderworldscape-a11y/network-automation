@@ -1,0 +1,15 @@
+---
+- name: Show Cisco version
+  hosts: router1
+  gather_facts: false
+
+  tasks:
+    - name: Run show version
+      cisco.ios.ios_command:
+        commands:
+          - show version
+      register: show_version_output
+
+    - name: Display show version
+      ansible.builtin.debug:
+        var: show_version_output.stdout

@@ -1,0 +1,22 @@
+---
+- name: Check OSPF neighbors
+  hosts: cisco
+  gather_facts: false
+
+  tasks:
+    - name: Get OSPF neighbors
+      ansible.netcommon.cli_command:
+        command: show ip ospf neighbor
+      register: ospf_neighbors
+
+    - name: Count OSPF neighbors
+      ansible.builtin.debug:
+        msg: >-
+          {{ (ospf_neighbors.stdout_lines | length - 1)
+             if ospf_neighbors.stdout_lines | length > 0
+             else 0 }}
+
+    - name: Report devices with no OSPF neighbors
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} has no OSPF neighbors"
+      when: ospf_neighbors.stdout_lines | length == 0
