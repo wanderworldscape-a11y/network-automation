@@ -6,19 +6,36 @@ from connection import run_command
 # OSPFネイバー状態の生データを各デバイスから収集する
 def collect_ospf_neighbors(ssh_connection):
 
-    return run_command(
-        ssh_connection,
-        "show ip ospf neighbor"
-    )
+    if ssh_connection.device_type == "cisco_asa":
+        command = "show ospf neighbor"
+    else:
+        command = "show ip ospf neighbor"
+
+    return run_command(ssh_connection, command)
 
 # Collect raw interface information
 # インターフェース状態の生データを各デバイスから収集する
 def collect_interfaces(ssh_connection):
 
+    if ssh_connection.device_type == "cisco_asa":
+        command = "show interface ip brief"
+    else:
+        command = "show ip interface brief"
+
     return run_command(
         ssh_connection,
-        "show ip interface brief"
+        command
     )
+
+
+# Collect ASA logical interface names (nameif)
+# ファイヤーウォールのインターフェース情報を収集する
+def collect_asa_nameif(ssh_connection):
+    return run_command(
+        ssh_connection,
+        "show nameif"
+    )
+
 
 # Collect raw VLAN information
 # VLAN状態の生データを各デバイスから収集する
