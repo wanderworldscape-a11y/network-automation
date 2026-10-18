@@ -67,12 +67,23 @@ for device in devices:
 
     # Display this device summary
     # 本デバイスの概要を表示する
-    print("==============================================")
+    print(f"{'=' * 109}")
     print(f"\n{device['name']} : {device['device_id']}")
     print(f"Neighbor count: {len(neighbors)}")
-    access_port_count = sum(len(vlan["ports"]) for vlan in vlans)
-    print(f"VLANs: {len(vlans)} | Trunks: {len(trunks)} | Access Ports: {access_port_count}")
-    print("-------------------------------------------")
+    if device["role"] == "firewall":
+        interfaces = interface_inventory[device["name"]]
+        assigned_interfaces = [
+            interface for interface in interfaces
+            if interface["ip_address"] != "unassigned"
+        ]
+        print(f"Interfaces: {len(interfaces)} | IP-assigned: {len(assigned_interfaces)}")
+    else:
+        access_port_count = sum(len(vlan["ports"]) for vlan in vlans)
+        print(
+            f"VLANs: {len(vlans)} | Trunks: {len(trunks)} "
+            f"| Access Ports: {access_port_count}"
+        )
+    print(f"{'-' * 99}")
 
     # Display OSPF relationships for this device
     # 本デバイスのOSPFネイバーとの接続関係を表示する
@@ -87,13 +98,14 @@ for device in devices:
 
     # Display VLAN information for this device
     # 本デバイスのVLAN情報とリモート側との接続関係を表示する
-    report_vlans(
-        device,
-        vlans,
-        trunks,
-        allowed_vlans,
-        correlated_stp_trunks,
-        correlated_etherchannels,
-        spanning_tree,
-        stp_root_devices,
-    )
+    if device["role"] != "firewall":
+        report_vlans(
+            device,
+            vlans,
+            trunks,
+            allowed_vlans,
+            correlated_stp_trunks,
+            correlated_etherchannels,
+            spanning_tree,
+            stp_root_devices,
+        )

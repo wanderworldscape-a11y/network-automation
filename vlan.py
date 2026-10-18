@@ -30,7 +30,7 @@ def report_vlans(
             vlan_number
         )
 
-        print("-------------------------------------------")
+        print(f"{'-' * 99}")
 
         # Find the STP root bridge for this VLAN
         # 本VLANのSTPルートブリッジを特定する
@@ -39,13 +39,30 @@ def report_vlans(
         # Print VLAN header
         # 本VLANヘッダーを表示する
         if device["name"] == root_bridge:
-            print(f"VLAN {vlan_number} | This is the root bridge")
+            print(f"VLAN {vlan_number} TRUNK PORTS | This is the root bridge")
         else:
-            print(f"VLAN {vlan_number} | Root Bridge - {root_bridge}")
+            print(f"VLAN {vlan_number} TRUNK PORTS | Root Bridge - {root_bridge}")
 
         # Print trunk ports for this VLAN
         # 本VLANのトランクポートを表示する
-        print("  TRUNK PORTS")
+        print(f"{'-' * 99}")
+        print(
+            f"{'Local Int':<18} | "
+            f"{'Role':<8} | "
+            f"{'State':<8} | "
+            f"{'':<13} | "
+            f"{'Remote Int':<12} | "
+            f"{'Remote Device':<15}"
+        )
+        print(
+            f"{'-' * 18}-+-"
+            f"{'-' * 8}-+-"
+            f"{'-' * 8}-+-"
+            f"{'-' * 13}-+-"
+            f"{'-' * 12}-+-"
+            f"{'-' * 15}"
+        )
+
 
         # Look for interfaces associated with this VLAN
         # 本VLANに関連する各インターフェースを探す
@@ -80,12 +97,14 @@ def report_vlans(
                     ):
 
                         print(
-                            f"    {interface} | "
-                            f"Role: {correlated_stp_trunk['role']} | "
-                            f"State: {correlated_stp_trunk['state']} | "
-                            f"<-----------> {correlated_stp_trunk['remote_interface']} "
-                            f"({correlated_stp_trunk['remote_device']}) "
+                            f"{interface:<18} | "
+                            f"{correlated_stp_trunk['role']:<8} | "
+                            f"{correlated_stp_trunk['state']:<8} | "
+                            f"<-----------> | "
+                            f"{correlated_stp_trunk['remote_interface']:<12} | "
+                            f"{correlated_stp_trunk['remote_device']:<15}"
                         )
+
         
         # Display EtherChannel VLAN relationships
         # EtherChannelのVLAN関係を表示する
@@ -99,8 +118,9 @@ def report_vlans(
 
         # Print access ports title for this VLAN
         # VLANのアクセスポートヘッダーを表示する
-        print("  ACCESS PORTS")
-
+        print(f"{'-' * 99}")
+        print(f"VLAN {vlan_number} ACCESS PORTS:")
+        
         # Get access ports for the VLAN
         # 本VLANのアクセスポートを取得する
         access_ports = vlan["ports"]
@@ -110,7 +130,7 @@ def report_vlans(
         if access_ports:
 
             for access_port in access_ports:
-                print(f"    {access_port}")
+                print(f"{access_port}")
 
         else:
 

@@ -1,25 +1,34 @@
 # Parse raw OSPF neighbor information
 # 生のOSPF隣接情報からネイバーのデバイスID、リモートIP、ローカルインターフェースを解析し、
 # 利用できるデータ構造に整形する
+
 def parse_ospf_neighbors(ospf_output):
 
     neighbors = []
 
     lines = ospf_output.splitlines()
 
-    for line in lines[2:]:
+    for line in lines:
         sections = line.split()
 
-        if len(sections) >= 6:
-            neighbor = {
-                "neighbor_id": sections[0],
-                "remote_ip": sections[4],
-                "local_interface": sections[5].replace("GigabitEthernet", "Gi"),
-            }
+        # Skip headers and lines that don't contain a neighbor entry.
+        if len(sections) < 6:
+            continue
 
-            neighbors.append(neighbor)
+        # OSPF neighbor entries start with a neighbor ID (an IP address).
+        if sections[0].count(".") != 3:
+            continue
+
+        neighbor = {
+            "neighbor_id": sections[0],
+            "remote_ip": sections[4],
+            "local_interface": sections[5].replace("GigabitEthernet", "Gi"),
+        }
+
+        neighbors.append(neighbor)
 
     return neighbors
+
 
 
 # Parse raw interface information
@@ -43,6 +52,25 @@ def parse_interfaces(interface_output):
             interfaces.append(interface)
 
     return interfaces
+
+
+# Parse ASA firewall interfaces
+# ファイヤーウォールのインターフェース情報を利用できる構造に整形する
+def parse_asa_nameif(nameif_output):
+    nameif_mapping = {}
+
+    for line in nameif_output.splitlines()[1:]:
+        sections = line.split()
+
+        if len(sections) >= 2:
+            physical_interface = sections[0].replace(
+                "GigabitEthernet", "Gi"
+            )
+            logical_name = sections[1]
+            nameif_mapping[logical_name] = physical_interface
+
+    return nameif_mapping
+
 
 
 # Parse raw VLAN information

@@ -96,8 +96,13 @@ def correlate_ospf_with_interfaces(
         local_ip = "Unknown"
 
         for interface in interfaces:
-            if neighbor["local_interface"] == interface["interface"]:
+            # Match IOS physical interface names or ASA logical nameif values.
+            if (
+                neighbor["local_interface"] == interface["interface"]
+                or neighbor["local_interface"] == interface.get("nameif")
+            ):
                 local_ip = interface["ip_address"]
+                break
 
         remote_device = neighbor["neighbor_id"]
         remote_interface = "Unknown Int:"
@@ -107,6 +112,7 @@ def correlate_ospf_with_interfaces(
                 if interface["ip_address"] == neighbor["remote_ip"]:
                     remote_device = device_name
                     remote_interface = interface["interface"]
+                    break
 
         correlated_neighbor = {
             "neighbor_id": neighbor["neighbor_id"],

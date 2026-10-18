@@ -6,6 +6,7 @@ from collectors import (
     collect_spanning_tree,
     collect_ospf_neighbors,
     collect_interfaces,
+    collect_asa_nameif,
     collect_vlan_information,
     collect_trunks,
     collect_cdp_information,
@@ -18,6 +19,7 @@ from parsers import (
     parse_spanning_tree,
     parse_ospf_neighbors,
     parse_interfaces,
+    parse_asa_nameif,
     parse_vlan_information,
     parse_trunks,
     parse_allowed_vlans,
@@ -36,17 +38,22 @@ from correlators import (
 # Collect spanning-tree information for all devices
 # 各デバイスからSTP状態の生データを収集する
 def collect_spanning_trees(devices):
- 
+
     all_spanning_trees = {}
 
     for device in devices:
+        if device["role"] == "firewall":
+            all_spanning_trees[device["name"]] = []
+            continue
+
         ssh_connection = connect(device)
 
         try:
             spanning_tree_output = collect_spanning_tree(ssh_connection)
-            spanning_tree = parse_spanning_tree(spanning_tree_output)
 
-            all_spanning_trees[device["name"]] = spanning_tree
+            all_spanning_trees[device["name"]] = parse_spanning_tree(
+                spanning_tree_output
+            )
 
         finally:
             ssh_connection.disconnect()
@@ -67,6 +74,15 @@ def collect_interface_inventory(devices):
             interface_output = collect_interfaces(ssh_connection)
             interfaces = parse_interfaces(interface_output)
 
+            if device["role"] == "firewall":
+                nameif_output = collect_asa_nameif(ssh_connection)
+                nameif_mapping = parse_asa_nameif(nameif_output)
+
+                for interface in interfaces:
+                    for logical_name, physical_name in nameif_mapping.items():
+                        if interface["interface"] == physical_name:
+                            interface["nameif"] = logical_name
+
             interface_inventory[device["name"]] = interfaces
 
         finally:
@@ -80,11 +96,17 @@ def collect_etherchannel_inventory(devices):
     etherchannel_inventory = {}
 
     for device in devices:
+
+        if device["role"] == "firewall":
+            etherchannel_inventory[device["name"]] = []
+            continue
+
         ssh_connection = connect(device)
         try:
             etherchannel_output = collect_etherchannel_summary(ssh_connection)
-            etherchannels = parse_etherchannel_summary(etherchannel_output)
-            etherchannel_inventory[device["name"]] = etherchannels
+            etherchannel_inventory[device["name"]] = parse_etherchannel_summary(
+                etherchannel_output
+            )
         finally:
             ssh_connection.disconnect()
 
@@ -97,11 +119,14 @@ def collect_cdp_inventory(devices):
     cdp_inventory = {}
 
     for device in devices:
+        if device["role"] == "firewall":
+            cdp_inventory[device["name"]] = []
+            continue
+
         ssh_connection = connect(device)
         try:
             cdp_output = collect_cdp_information(ssh_connection)
-            cdp_neighbors = parse_cdp_neighbors(cdp_output)
-            cdp_inventory[device["name"]] = cdp_neighbors
+            cdp_inventory[device["name"]] = parse_cdp_neighbors(cdp_output)
         finally:
             ssh_connection.disconnect()
 
@@ -119,10 +144,31 @@ def build_device_state(
     ssh_connection = connect(device)
 
     try:
-        # Collect and parse OSPF neighbor information
+        # Collect and parse OSPF neighbor information by device specific counter
         # 生のOSPFデータを利用できる構造に整形する
         ospf_output = collect_ospf_neighbors(ssh_connection)
         neighbors = parse_ospf_neighbors(ospf_output)
+
+        # Correlate OSPF neighbors with interface information
+        # 各デバイスからOSPFネイバー情報とインターフェース情報を照合し、
+        # OSPFが使用するIPアドレスとデバイスIDをインターフェースに関連付ける
+        correlated_ospf_neighbors = correlate_ospf_with_interfaces(
+            neighbors,
+            interface_inventory[device["name"]],
+            interface_inventory,
+        )
+
+        # Firewalls do not use the switch-specific reporting pipeline.
+        if device["role"] == "firewall":
+            return {
+                "neighbors": neighbors,
+                "correlated_ospf_neighbors": correlated_ospf_neighbors,
+                "vlans": [],
+                "trunks": [],
+                "allowed_vlans": [],
+                "spanning_tree": [],
+                "correlated_stp_trunks": [],
+            }
 
         # Collect and parse VLAN information
         # 生のVLANデータを利用できる構造に整形する
@@ -133,30 +179,15 @@ def build_device_state(
         # 生のTRUNKデータを利用できる構造に整形する
         trunk_output = collect_trunks(ssh_connection)
         trunks = parse_trunks(trunk_output)
-
-        # Parse allowed VLAN information on trunk interfaces
-        # TRUNKの利用が許可されたVLANを特定し、利用できる構造に整形する
         allowed_vlans = parse_allowed_vlans(trunk_output)
-
-        # Use the collected CDP neighbor information
-        # 収集したCDPネイバー情報を利用する
-        cdp_neighbors = cdp_inventory[device["name"]]
 
         # Correlate trunk interfaces with CDP neighbors
         # 本デバイスのトランクインターフェースと一致するCDPローカルインターフェースを特定し、
         # それに続いてCDPネイバーの接続関係を特定する
+        cdp_neighbors = cdp_inventory[device["name"]]
         correlated_trunks = correlate_trunks_with_cdp(
             trunks,
             cdp_neighbors,
-        )
-
-        # Correlate OSPF neighbors with interface information
-        # 各デバイスからOSPFネイバー情報とインターフェース情報を照合し、
-        # OSPFが使用するIPアドレスとデバイスIDをインターフェースに関連付ける
-        correlated_ospf_neighbors = correlate_ospf_with_interfaces(
-            neighbors,
-            interface_inventory[device["name"]],
-            interface_inventory,
         )
 
         # Correlate STP port information with trunk connections

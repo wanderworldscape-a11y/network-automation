@@ -48,10 +48,10 @@ def report_etherchannel_vlans(
                     continue
 
                 print(
-                    f"    {local_port_channel}  | "
-                    f"Role: {stp_port['role']} | "
-                    f"State: {stp_port['state']} | "
-                    f"<-----------> "
-                    f"{etherchannel['remote_port_channel']} "
-                    f"({etherchannel['remote_device']})"
+                    f"{local_port_channel:<18} | "
+                    f"{stp_port['role']:<8} | "
+                    f"{stp_port['state']:<8} | "
+                    f"<-----------> | "
+                    f"{etherchannel['remote_port_channel']:<12} | "
+                    f"{etherchannel['remote_device']:<15}"
                 )

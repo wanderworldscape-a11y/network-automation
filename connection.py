@@ -7,6 +7,7 @@ import paramiko
 # 本プロジェクトのデバイスが使用する旧式SSHキー交換アルゴリズムを有効化する
 paramiko.Transport._preferred_kex = (
     "diffie-hellman-group14-sha1",
+    "diffie-hellman-group1-sha1",
 )
 
 # Establish an SSH connection to a network device
@@ -17,6 +18,7 @@ def connect(device):
         host=device["host"],
         username=device["username"],
         password=device["password"],
+        secret=device.get("secret", ""),
     )
 
     return connection
